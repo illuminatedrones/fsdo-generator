@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>FSDO Notification Generator — Illuminate Drones</title>
+
+  <!-- Leaflet (interactive map) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ============ PIN LOCK SCREEN ============ -->
+  <div id="lock-screen" class="lock-screen">
+    <div class="lock-card">
+      <div class="lock-logo">ILLUMINATE&nbsp;DRONES</div>
+      <h1>FSDO Notification Generator</h1>
+      <p class="lock-sub">Enter the team PIN to continue.</p>
+      <form id="pin-form" autocomplete="off">
+        <input id="pin-input" type="password" inputmode="numeric" placeholder="PIN"
+               autocomplete="off" aria-label="Team PIN" />
+        <button type="submit" class="btn btn-primary">Unlock</button>
+      </form>
+      <p id="pin-error" class="pin-error" hidden>Incorrect PIN. Try again.</p>
+    </div>
+  </div>
+
+  <!-- ============ MAIN APP ============ -->
+  <div id="app" class="app" hidden>
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark">◆</span>
+        <span class="brand-name">Illuminate Drones</span>
+        <span class="brand-sep">/</span>
+        <span class="brand-page">FSDO Notification</span>
+      </div>
+      <div class="who">
+        <label for="sender-name">Your name</label>
+        <input id="sender-name" type="text" placeholder="e.g. Jacob Howard" autocomplete="name" />
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- LEFT: MAP + LOCATION -->
+      <section class="panel panel-map">
+        <h2>1 · Show location</h2>
+
+        <div class="loc-controls">
+          <div class="field">
+            <label for="addr-search">Search address or place</label>
+            <div class="search-row">
+              <input id="addr-search" type="text" placeholder="Type an address, city, or venue…" autocomplete="off" />
+              <button id="addr-search-btn" type="button" class="btn btn-ghost">Find</button>
+            </div>
+            <ul id="addr-results" class="addr-results" hidden></ul>
+          </div>
+
+          <div class="coord-row">
+            <div class="field">
+              <label for="lat">Latitude</label>
+              <input id="lat" type="text" inputmode="decimal" placeholder="40.1622743" />
+            </div>
+            <div class="field">
+              <label for="lon">Longitude</label>
+              <input id="lon" type="text" inputmode="decimal" placeholder="-111.6290287" />
+            </div>
+            <button id="coord-go" type="button" class="btn btn-ghost">Go</button>
+          </div>
+          <p class="hint">Click anywhere on the map to drop a pin, paste coordinates, or search an address.</p>
+        </div>
+
+        <div id="map" class="map"></div>
+
+        <div id="resolved-address" class="resolved-address" hidden></div>
+      </section>
+
+      <!-- RIGHT: DETAILS -->
+      <section class="panel panel-details">
+        <h2>2 · Show details</h2>
+
+        <div class="grid-2">
+          <div class="field">
+            <label for="start-date">Start date</label>
+            <input id="start-date" type="date" />
+          </div>
+          <div class="field">
+            <label for="end-date">End date</label>
+            <input id="end-date" type="date" />
+          </div>
+          <div class="field">
+            <label for="start-time">Start time</label>
+            <input id="start-time" type="time" value="10:00" />
+          </div>
+          <div class="field">
+            <label for="end-time">End time</label>
+            <input id="end-time" type="time" value="23:59" />
+          </div>
+          <div class="field">
+            <label for="alt-ft">Max altitude (ft AGL)</label>
+            <input id="alt-ft" type="number" min="0" step="50" value="400" />
+          </div>
+        </div>
+
+        <h2>3 · Exclusion zone screenshot <span class="req">required</span></h2>
+        <div class="field">
+          <label for="excl-image" class="upload-drop" id="excl-drop">
+            <span id="excl-label">Click to upload the flight area / geofence / buffer-zone image</span>
+            <input id="excl-image" type="file" accept="image/*" hidden />
+          </label>
+          <div id="excl-preview-wrap" class="excl-preview-wrap" hidden>
+            <img id="excl-preview" alt="Exclusion zone preview" />
+            <button type="button" id="excl-remove" class="btn btn-ghost btn-sm">Remove</button>
+          </div>
+        </div>
+
+        <h2>4 · Nearest FSDO</h2>
+        <div id="fsdo-box" class="fsdo-box empty">
+          <p class="fsdo-empty">Set a location above and the nearest Flight Standards District Office will appear here.</p>
+        </div>
+
+        <div class="actions">
+          <button id="review-btn" type="button" class="btn btn-primary btn-lg" disabled>Review email →</button>
+          <p id="validation-msg" class="validation-msg"></p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ============ REVIEW / SEND MODAL ============ -->
+  <div id="review-modal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>Review &amp; send</h2>
+        <button id="review-close" type="button" class="modal-x" aria-label="Close">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="rv-row"><span class="rv-k">From</span><span id="rv-from" class="rv-v"></span></div>
+        <div class="rv-row">
+          <span class="rv-k">To</span>
+          <span class="rv-v rv-edit">
+            <input id="rv-to" type="email" />
+            <em id="rv-to-name"></em>
+          </span>
+        </div>
+        <div class="rv-row"><span class="rv-k">Cc</span><span id="rv-cc" class="rv-v"></span></div>
+        <div class="rv-row">
+          <span class="rv-k">Subject</span>
+          <span class="rv-v rv-edit"><input id="rv-subject" type="text" /></span>
+        </div>
+        <div class="rv-row rv-row-body">
+          <span class="rv-k">Body</span>
+          <textarea id="rv-body" class="rv-v" rows="14"></textarea>
+        </div>
+        <div class="rv-row">
+          <span class="rv-k">Attachments</span>
+          <ul id="rv-attach" class="rv-attach rv-v"></ul>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <p id="send-status" class="send-status"></p>
+        <div class="modal-foot-btns">
+          <button id="send-cancel" type="button" class="btn btn-ghost">Back to edit</button>
+          <button id="send-btn" type="button" class="btn btn-primary btn-lg">Send to FSDO</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

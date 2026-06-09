@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PIN hash generator</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; background:#0c1018; color:#e7ecf5;
+           display:grid; place-items:center; min-height:100vh; margin:0; }
+    .card { background:#161d2c; border:1px solid #28344a; border-radius:16px; padding:30px; width:min(92vw,460px); }
+    h1 { font-size:18px; margin:0 0 6px; }
+    p { color:#8e9bb3; font-size:14px; margin:0 0 18px; }
+    input { width:100%; padding:12px; border-radius:8px; border:1px solid #28344a; background:#0c1018;
+            color:#e7ecf5; font-size:16px; box-sizing:border-box; }
+    label { font-size:13px; color:#8e9bb3; display:block; margin-bottom:6px; }
+    .out { margin-top:18px; }
+    code { display:block; background:#0c1018; border:1px solid #28344a; border-radius:8px; padding:12px;
+           font-size:13px; word-break:break-all; color:#ffb627; min-height:1.2em; }
+    button { margin-top:10px; background:#ffb627; color:#1a1300; border:none; border-radius:8px;
+             padding:10px 16px; font-weight:600; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>PIN hash generator</h1>
+    <p>Type the PIN you want the team to use. Copy the hash below into
+       <code style="display:inline;border:none;padding:0;background:none">config.js → PIN_SHA256</code>,
+       and put the <strong>same PIN</strong> into the Apps Script <code style="display:inline;border:none;padding:0;background:none">TEAM_PIN</code>.</p>
+    <label for="pin">PIN</label>
+    <input id="pin" type="text" placeholder="e.g. drone2026" autofocus />
+    <div class="out">
+      <label>SHA-256 hash</label>
+      <code id="hash">—</code>
+      <button id="copy">Copy hash</button>
+    </div>
+  </div>
+  <script>
+    const pin = document.getElementById("pin");
+    const hashEl = document.getElementById("hash");
+    async function update() {
+      const v = pin.value;
+      if (!v) { hashEl.textContent = "—"; return; }
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v));
+      hashEl.textContent = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,"0")).join("");
+    }
+    pin.addEventListener("input", update);
+    document.getElementById("copy").addEventListener("click", () => {
+      if (hashEl.textContent !== "—") navigator.clipboard.writeText(hashEl.textContent);
+    });
+  </script>
+</body>
+</html>

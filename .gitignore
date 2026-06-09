@@ -1,0 +1,6 @@
+# The 16 MB waiver packet lives in Google Drive, not the repo.
+# (The Apps Script attaches it from Drive by file ID.)
+*.zip
+
+# OS cruft
+.DS_Store
