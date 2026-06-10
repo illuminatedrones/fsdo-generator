@@ -12,6 +12,10 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
+  <!-- Flatpickr (popup calendar) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css" />
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -39,10 +43,6 @@
         <span class="brand-name">Illuminate Drones</span>
         <span class="brand-sep">/</span>
         <span class="brand-page">FSDO Notification</span>
-      </div>
-      <div class="who">
-        <label for="sender-name">Your name</label>
-        <input id="sender-name" type="text" placeholder="e.g. Jacob Howard" autocomplete="name" />
       </div>
     </header>
 
@@ -84,14 +84,19 @@
       <section class="panel panel-details">
         <h2>2 · Show details</h2>
 
+        <div class="field">
+          <label for="sender-name">Your name <span class="req">required</span></label>
+          <input id="sender-name" type="text" placeholder="Your full name" autocomplete="name" />
+        </div>
+
         <div class="grid-2">
           <div class="field">
             <label for="start-date">Start date</label>
-            <input id="start-date" type="date" />
+            <input id="start-date" type="text" placeholder="Pick a date" autocomplete="off" />
           </div>
           <div class="field">
             <label for="end-date">End date</label>
-            <input id="end-date" type="date" />
+            <input id="end-date" type="text" placeholder="Pick a date" autocomplete="off" />
           </div>
           <div class="field">
             <label for="start-time">Start time</label>

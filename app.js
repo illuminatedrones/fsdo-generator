@@ -73,10 +73,20 @@
   function initMap() {
     const d = CFG.MAP_DEFAULT || { lat: 39.5, lon: -98.35, zoom: 4 };
     map = L.map("map", { scrollWheelZoom: true }).setView([d.lat, d.lon], d.zoom);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "© OpenStreetMap"
-    }).addTo(map);
+
+    const street = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19, attribution: "© OpenStreetMap"
+    });
+    const imagery = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      { maxZoom: 19, attribution: "Imagery © Esri, Maxar, Earthstar Geographics" });
+    const places = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+      { maxZoom: 19 });
+    const satellite = L.layerGroup([imagery, places]); // imagery + city/road labels
+
+    street.addTo(map);
+    L.control.layers({ "Street": street, "Satellite": satellite }, null, { position: "topright" }).addTo(map);
 
     map.on("click", (e) => setLocation(e.latlng.lat, e.latlng.lng, { reverse: true, fly: false }));
   }
@@ -219,29 +229,33 @@
 
   function computeNearest() {
     if (state.lat == null || !state.fsdos.length) return;
-    let best = null, bestD = Infinity;
+    let best = null, bestD = Infinity;             // nearest office that HAS an email
+    let nearestAny = null, nearestAnyD = Infinity; // nearest office overall
     for (const f of state.fsdos) {
       if (!Number.isFinite(f.lat) || !Number.isFinite(f.lon)) continue;
       const d = haversine(state.lat, state.lon, f.lat, f.lon);
-      if (d < bestD) { bestD = d; best = f; }
+      if (d < nearestAnyD) { nearestAnyD = d; nearestAny = f; }
+      if (f.email && d < bestD) { bestD = d; best = f; }
     }
     state.nearest = best;
-    renderFsdo(best, bestD);
+    renderFsdo(best, bestD, nearestAny, nearestAnyD);
   }
 
-  function renderFsdo(f, dist) {
+  function renderFsdo(f, dist, nearestAny, nearestAnyD) {
     const box = $("fsdo-box");
-    if (!f) { box.className = "fsdo-box empty"; box.innerHTML = '<p class="fsdo-empty">No FSDO found.</p>'; return; }
+    if (!f) { box.className = "fsdo-box empty"; box.innerHTML = '<p class="fsdo-empty">No FSDO with a published email found nearby.</p>'; return; }
     box.className = "fsdo-box";
     const miles = Number.isFinite(dist) ? `${Math.round(dist)} mi away` : "";
-    const unverified = !f.email || f.email_status !== "verified";
+    const fellBack = nearestAny && nearestAny.id !== f.id;
+    const unverified = f.email_status && f.email_status !== "verified";
     box.innerHTML = `
       <p class="fsdo-name">${esc(f.name)} <span class="dist">${miles}</span></p>
       <p class="fsdo-addr">${esc(f.address || [f.city, f.state].filter(Boolean).join(", "))}</p>
       <div class="fsdo-email">
         <input id="fsdo-email-input" type="email" value="${esc(f.email || "")}" placeholder="FSDO email address…" />
       </div>
-      ${unverified ? `<div class="fsdo-warn">⚠ ${f.email ? "This email is unverified — confirm it's correct before sending." : "No email on file for this office — enter the correct FSDO email above."}</div>` : ""}
+      ${fellBack ? `<div class="fsdo-warn">ℹ The closest office (${esc(nearestAny.name)}, ${Math.round(nearestAnyD)} mi) has no published email, so this is the nearest office that does. Confirm it's the right one.</div>` : ""}
+      ${unverified ? `<div class="fsdo-warn">⚠ This email is unverified — confirm it's correct before sending.</div>` : ""}
     `;
     $("fsdo-email-input").addEventListener("input", validate);
     validate();
@@ -499,10 +513,20 @@
     initUpload();
     loadFsdos();
 
-    // default dates
     $("alt-ft").value = CFG.DEFAULT_ALT_FT || 400;
 
-    ["sender-name", "start-date", "end-date", "start-time", "end-time", "alt-ft"]
+    // popup calendars; end date can't be before start date
+    if (window.flatpickr) {
+      const endFp = flatpickr("#end-date", {
+        dateFormat: "Y-m-d", altInput: true, altFormat: "M j, Y", disableMobile: true, onChange: validate
+      });
+      flatpickr("#start-date", {
+        dateFormat: "Y-m-d", altInput: true, altFormat: "M j, Y", disableMobile: true,
+        onChange: function (sel) { if (sel[0]) endFp.set("minDate", sel[0]); validate(); }
+      });
+    }
+
+    ["sender-name", "start-time", "end-time", "alt-ft"]
       .forEach((id) => $(id).addEventListener("input", validate));
 
     $("review-btn").addEventListener("click", openReview);
