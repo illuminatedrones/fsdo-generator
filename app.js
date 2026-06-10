@@ -17,8 +17,19 @@
     region: null,          // state / province
     nearest: null,         // FSDO object
     image: null,           // { name, mimeType, dataBase64 }
-    fsdos: []
+    fsdos: [],
+    spots: []              // saved locations (shared, from the Worker)
   };
+
+  // POST JSON to the backend Worker and return the parsed response.
+  async function backend(payload) {
+    const res = await fetch(CFG.BACKEND_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  }
 
   // Minimal fallback so the page works even before fsdo_offices.json loads.
   const FALLBACK_FSDOS = [
@@ -118,6 +129,8 @@
 
     computeNearest();
     if (opts.reverse) reverseGeocode(lat, lon);
+    const sb = $("spot-save-btn");
+    if (sb) sb.disabled = false;
     validate();
   }
 
@@ -154,7 +167,7 @@
       const q = input.value.trim();
       if (q.length < 3) { list.hidden = true; return; }
       try {
-        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(q)}`;
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=us&limit=6&q=${encodeURIComponent(q)}`;
         const r = await fetch(url, { headers: { "Accept-Language": "en" } });
         const items = await r.json();
         list.innerHTML = "";
@@ -259,6 +272,104 @@
     `;
     $("fsdo-email-input").addEventListener("input", validate);
     validate();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* SAVED SPOTS (shared across the team via the Worker)                 */
+  /* ------------------------------------------------------------------ */
+  async function loadSpots() {
+    if (!CFG.BACKEND_URL || CFG.BACKEND_URL.startsWith("PASTE")) return;
+    try {
+      const out = await backend({ action: "listSpots", pin: state.pin });
+      if (out && out.ok) { state.spots = out.spots || []; renderSpots(); }
+    } catch (_) { /* non-fatal — spots just stay empty */ }
+  }
+
+  function renderSpots() {
+    const list = $("spot-list");
+    list.innerHTML = "";
+    state.spots.forEach((s) => {
+      const o = document.createElement("option");
+      o.value = s.name;
+      list.appendChild(o);
+    });
+  }
+
+  function findSpotByName(name) {
+    name = String(name || "").trim().toLowerCase();
+    return state.spots.find((s) => s.name.toLowerCase() === name) || null;
+  }
+
+  function initSpots() {
+    const search = $("spot-search");
+    const hint = $("spot-hint");
+
+    search.addEventListener("input", () => {
+      const sp = findSpotByName(search.value);
+      if (sp) {
+        state.address = sp.address || null;
+        setLocation(sp.lat, sp.lon, { fly: true });
+        showAddress();
+        hint.hidden = false;
+        hint.innerHTML = `★ Loaded “${esc(sp.name)}”. <a href="#" id="spot-del" class="link-danger">Remove this saved spot</a>`;
+        $("spot-del").addEventListener("click", (e) => { e.preventDefault(); deleteSpot(sp); });
+      } else {
+        hint.hidden = true;
+      }
+    });
+
+    $("spot-save-btn").addEventListener("click", () => {
+      if (state.lat == null) return;
+      $("spot-save-row").hidden = false;
+      $("spot-name").value = state.city || "";
+      $("spot-name").focus();
+    });
+    $("spot-save-cancel").addEventListener("click", () => {
+      $("spot-save-row").hidden = true; $("spot-name").value = "";
+    });
+    $("spot-name").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); saveSpot(); }
+    });
+    $("spot-save-confirm").addEventListener("click", saveSpot);
+  }
+
+  async function saveSpot() {
+    const name = $("spot-name").value.trim();
+    if (!name) { $("spot-name").focus(); return; }
+    if (state.lat == null) { toast("Set a location first.", "err"); return; }
+    const btn = $("spot-save-confirm");
+    btn.disabled = true;
+    try {
+      const out = await backend({
+        action: "saveSpot", pin: state.pin, name,
+        lat: state.lat, lon: state.lon, address: state.address || ""
+      });
+      if (out && out.ok) {
+        state.spots = out.spots || [];
+        renderSpots();
+        $("spot-save-row").hidden = true; $("spot-name").value = "";
+        toast("Saved spot: " + name, "ok");
+      } else {
+        toast((out && out.error) || "Could not save spot.", "err");
+      }
+    } catch (_) { toast("Network error saving spot.", "err"); }
+    btn.disabled = false;
+  }
+
+  async function deleteSpot(sp) {
+    if (!sp) return;
+    try {
+      const out = await backend({ action: "deleteSpot", pin: state.pin, id: sp.id });
+      if (out && out.ok) {
+        state.spots = out.spots || [];
+        renderSpots();
+        $("spot-search").value = "";
+        $("spot-hint").hidden = true;
+        toast("Removed spot: " + sp.name, "ok");
+      } else {
+        toast((out && out.error) || "Could not remove spot.", "err");
+      }
+    } catch (_) { toast("Network error removing spot.", "err"); }
   }
 
   /* ------------------------------------------------------------------ */
@@ -510,8 +621,10 @@
     initMap();
     initSearch();
     initCoordEntry();
+    initSpots();
     initUpload();
     loadFsdos();
+    loadSpots();
 
     $("alt-ft").value = CFG.DEFAULT_ALT_FT || 400;
 

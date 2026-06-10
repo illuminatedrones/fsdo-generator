@@ -30,9 +30,16 @@ export default {
 
     try {
       const req = await request.json();
-
-      // --- auth + rate limiting ---
+      const action = req.action || "send";
       const pinOk = String(req.pin || "") === String(env.TEAM_PIN);
+
+      // --- saved spots (shared across the team, stored in KV) ---
+      if (action === "listSpots" || action === "saveSpot" || action === "deleteSpot") {
+        if (!pinOk) { await sleep(1500); return json({ ok: false, error: "Unauthorized (bad PIN)." }); }
+        return await handleSpots(env, action, req);
+      }
+
+      // --- auth + rate limiting (send) ---
       const gate = await rateGate(env, pinOk);
       if (!gate.ok) return json({ ok: false, error: gate.error });
 
@@ -103,6 +110,33 @@ export default {
 };
 
 /* ---------- helpers ---------- */
+/* ---------- saved spots (shared, stored in KV under "spots") ---------- */
+async function handleSpots(env, action, req) {
+  if (!env.RATE_KV) return json({ ok: false, error: "Spot storage not configured." });
+  let spots = JSON.parse((await env.RATE_KV.get("spots")) || "[]");
+
+  if (action === "listSpots") {
+    return json({ ok: true, spots });
+  }
+  if (action === "saveSpot") {
+    const name = String(req.name || "").trim().slice(0, 80);
+    const lat = Number(req.lat), lon = Number(req.lon);
+    if (!name) return json({ ok: false, error: "Name required." });
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return json({ ok: false, error: "Valid coordinates required." });
+    if (spots.length >= 300) return json({ ok: false, error: "Saved-spot limit reached (300)." });
+    spots.push({ id: crypto.randomUUID(), name, lat, lon, address: String(req.address || "").slice(0, 200) });
+    spots.sort((a, b) => a.name.localeCompare(b.name));
+    await env.RATE_KV.put("spots", JSON.stringify(spots));
+    return json({ ok: true, spots });
+  }
+  if (action === "deleteSpot") {
+    spots = spots.filter((s) => s.id !== req.id);
+    await env.RATE_KV.put("spots", JSON.stringify(spots));
+    return json({ ok: true, spots });
+  }
+  return json({ ok: false, error: "Unknown action." });
+}
+
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), { status, headers: { "Content-Type": "application/json", ...CORS } });
 }

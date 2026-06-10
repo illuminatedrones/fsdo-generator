@@ -53,9 +53,24 @@
 
         <div class="loc-controls">
           <div class="field">
-            <label for="addr-search">Search address or place</label>
+            <label for="spot-search">Saved spots <span class="muted-tag">shared with your team</span></label>
             <div class="search-row">
-              <input id="addr-search" type="text" placeholder="Type an address, city, or venue…" autocomplete="off" />
+              <input id="spot-search" list="spot-list" type="text" placeholder="Type to find a saved spot…" autocomplete="off" />
+              <datalist id="spot-list"></datalist>
+              <button id="spot-save-btn" type="button" class="btn btn-ghost" disabled title="Save the current location">★ Save</button>
+            </div>
+            <div id="spot-save-row" class="search-row spot-save-row" hidden>
+              <input id="spot-name" type="text" placeholder="Name this spot (e.g. Provo Stadium)…" autocomplete="off" />
+              <button id="spot-save-confirm" type="button" class="btn btn-primary">Save</button>
+              <button id="spot-save-cancel" type="button" class="btn btn-ghost">Cancel</button>
+            </div>
+            <p id="spot-hint" class="hint spot-hint" hidden></p>
+          </div>
+
+          <div class="field">
+            <label for="addr-search">Search address or place (USA)</label>
+            <div class="search-row">
+              <input id="addr-search" type="text" placeholder="Type a US address, city, or venue…" autocomplete="off" />
               <button id="addr-search-btn" type="button" class="btn btn-ghost">Find</button>
             </div>
             <ul id="addr-results" class="addr-results" hidden></ul>

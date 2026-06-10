@@ -70,7 +70,10 @@ for maintenance, not steps you need to run again.
 
 1. Open https://illuminatedrones.github.io/fsdo-generator/ and enter the PIN.
 2. Type your name (so we can see who sent it).
-3. Set the show location — click the map, paste coordinates, or search an address.
+3. Set the show location — pick a **saved spot**, click the map, paste
+   coordinates, or search a US address. **Saved spots** are shared across the
+   whole team (stored in the Worker's KV): set a location and click **★ Save** to
+   name it; anyone on the team can then find it in the "Saved spots" box.
 4. Set start/end dates, start/end times, and max altitude.
 5. Upload the exclusion-zone / geofence screenshot.
 6. Confirm the **Nearest FSDO** (its email is editable if needed).
