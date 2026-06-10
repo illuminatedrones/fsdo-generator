@@ -409,8 +409,8 @@
       setSendStatus("Enter a valid FSDO email address.", "err");
       return;
     }
-    if (!CFG.APPS_SCRIPT_URL || CFG.APPS_SCRIPT_URL.startsWith("PASTE")) {
-      setSendStatus("Backend not configured yet (APPS_SCRIPT_URL in config.js).", "err");
+    if (!CFG.BACKEND_URL || CFG.BACKEND_URL.startsWith("PASTE")) {
+      setSendStatus("Backend not configured yet (BACKEND_URL in config.js).", "err");
       return;
     }
 
@@ -434,7 +434,7 @@
     };
 
     try {
-      const res = await fetch(CFG.APPS_SCRIPT_URL, {
+      const res = await fetch(CFG.BACKEND_URL, {
         method: "POST",
         // text/plain keeps this a "simple" request → no CORS preflight to Apps Script
         headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -453,8 +453,8 @@
         btn.disabled = false;
       }
     } catch (err) {
-      setSendStatus("❌ Network/permission error: " + err.message +
-        " — confirm the Apps Script is deployed with access set to “Anyone.”", "err");
+      setSendStatus("❌ Network error: " + err.message +
+        " — the backend Worker may be unreachable. Check your connection and try again.", "err");
       btn.disabled = false;
     }
   }

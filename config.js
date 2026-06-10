@@ -5,10 +5,10 @@
    ===================================================================== */
 window.FSDO_CONFIG = {
 
-  /* The Google Apps Script web-app URL that actually sends the email.
-     You get this after deploying apps-script/Code.gs (README step 2).
-     It looks like: https://script.google.com/macros/s/AKfy..../exec      */
-  APPS_SCRIPT_URL: "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE",
+  /* The Cloudflare Worker URL that actually sends the email (it holds the
+     orders@ Gmail credential, pulls the waiver zip from Drive, and sends).
+     Deployed from cloudflare-worker/. See README.md.                       */
+  BACKEND_URL: "https://fsdo-mailer.illuminatedrones.workers.dev",
 
   /* SHA-256 hash of the team PIN that unlocks the site.
      Generate it by opening pin-hash.html in a browser and typing your PIN.

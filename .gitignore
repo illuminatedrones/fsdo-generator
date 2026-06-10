@@ -4,3 +4,7 @@
 
 # OS cruft
 .DS_Store
+
+# Cloudflare wrangler
+cloudflare-worker/.wrangler/
+node_modules/

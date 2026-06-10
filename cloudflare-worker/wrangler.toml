@@ -1,0 +1,21 @@
+name = "fsdo-mailer"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Rate-limit state (PIN tarpit + hourly send cap).
+# id is filled in by:  npx wrangler kv namespace create RATE_KV
+[[kv_namespaces]]
+binding = "RATE_KV"
+id = "7abe2cff69534e8cb7f3f699d37ba958"
+
+[vars]
+SENDER = "orders@illuminatedrones.com"
+SENDER_NAME = "Illuminate Drones"
+WAIVER_FILE_ID = "10MkuGkqIPc2obbbKvpokHVPj9YvgEOU7"
+FORCE_CC = "josh@illuminatedrones.com,jacob@illuminatedrones.com"
+
+# Secrets (NOT stored here — set once with wrangler):
+#   npx wrangler secret put TEAM_PIN
+#   npx wrangler secret put GOOGLE_CLIENT_ID
+#   npx wrangler secret put GOOGLE_CLIENT_SECRET
+#   npx wrangler secret put GOOGLE_REFRESH_TOKEN
