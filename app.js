@@ -16,6 +16,8 @@
     city: null,
     region: null,          // state / province
     nearest: null,         // FSDO object
+    fsdoEmail: "",         // the recipient email currently in use
+    fsdoEmailOverride: null, // { fsdoId, email } when manually edited
     image: null,           // { name, mimeType, dataBase64 }
     fsdos: [],
     spots: []              // saved locations (shared, from the Worker)
@@ -256,21 +258,52 @@
 
   function renderFsdo(f, dist, nearestAny, nearestAnyD) {
     const box = $("fsdo-box");
-    if (!f) { box.className = "fsdo-box empty"; box.innerHTML = '<p class="fsdo-empty">No FSDO with a published email found nearby.</p>'; return; }
+    if (!f) { box.className = "fsdo-box empty"; box.innerHTML = '<p class="fsdo-empty">No FSDO with a published email found nearby.</p>'; state.fsdoEmail = ""; return; }
     box.className = "fsdo-box";
     const miles = Number.isFinite(dist) ? `${Math.round(dist)} mi away` : "";
     const fellBack = nearestAny && nearestAny.id !== f.id;
     const unverified = f.email_status && f.email_status !== "verified";
+
+    // Default to this office's email. Keep a manual override only while the
+    // same office stays nearest, so nudging the pin doesn't wipe an edit.
+    const override = state.fsdoEmailOverride && state.fsdoEmailOverride.fsdoId === f.id
+      ? state.fsdoEmailOverride.email : null;
+    if (!override) state.fsdoEmailOverride = null;
+    state.fsdoEmail = override != null ? override : (f.email || "");
+
     box.innerHTML = `
       <p class="fsdo-name">${esc(f.name)} <span class="dist">${miles}</span></p>
       <p class="fsdo-addr">${esc(f.address || [f.city, f.state].filter(Boolean).join(", "))}</p>
-      <div class="fsdo-email">
-        <input id="fsdo-email-input" type="email" value="${esc(f.email || "")}" placeholder="FSDO email address…" />
+      <div class="fsdo-email-row" id="fsdo-email-view">
+        <span class="fsdo-email-label">Email</span>
+        <span class="fsdo-email-display" id="fsdo-email-display">${esc(state.fsdoEmail)}</span>
+        <button id="fsdo-email-edit" type="button" class="btn btn-ghost btn-sm">Edit</button>
       </div>
+      <div class="fsdo-email-row" id="fsdo-email-edit-row" hidden>
+        <input id="fsdo-email-input" type="email" value="${esc(state.fsdoEmail)}" placeholder="FSDO email address…" />
+        <button id="fsdo-email-done" type="button" class="btn btn-ghost btn-sm">Done</button>
+      </div>
+      ${override != null ? `<p class="hint">Using a custom email you entered.</p>` : ""}
       ${fellBack ? `<div class="fsdo-warn">ℹ The closest office (${esc(nearestAny.name)}, ${Math.round(nearestAnyD)} mi) has no published email, so this is the nearest office that does. Confirm it's the right one.</div>` : ""}
       ${unverified ? `<div class="fsdo-warn">⚠ This email is unverified — confirm it's correct before sending.</div>` : ""}
     `;
-    $("fsdo-email-input").addEventListener("input", validate);
+
+    const fsdoId = f.id;
+    $("fsdo-email-edit").addEventListener("click", () => {
+      $("fsdo-email-view").hidden = true;
+      $("fsdo-email-edit-row").hidden = false;
+      $("fsdo-email-input").focus();
+    });
+    $("fsdo-email-input").addEventListener("input", () => {
+      state.fsdoEmail = $("fsdo-email-input").value.trim();
+      state.fsdoEmailOverride = { fsdoId, email: state.fsdoEmail };
+      validate();
+    });
+    $("fsdo-email-done").addEventListener("click", () => {
+      $("fsdo-email-display").textContent = state.fsdoEmail;
+      $("fsdo-email-edit-row").hidden = true;
+      $("fsdo-email-view").hidden = false;
+    });
     validate();
   }
 
@@ -418,8 +451,7 @@
   /* VALIDATION                                                          */
   /* ------------------------------------------------------------------ */
   function currentToEmail() {
-    const el = $("fsdo-email-input");
-    return el ? el.value.trim() : (state.nearest && state.nearest.email) || "";
+    return (state.fsdoEmail || (state.nearest && state.nearest.email) || "").trim();
   }
 
   function validate() {
@@ -431,6 +463,7 @@
     if (!$("start-time").value || !$("end-time").value) problems.push("show times");
     if (!state.image) problems.push("the exclusion-zone image");
     if (!state.nearest) problems.push("a nearby FSDO");
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentToEmail())) problems.push("a valid FSDO email");
 
     const ok = problems.length === 0;
     $("review-btn").disabled = !ok;
