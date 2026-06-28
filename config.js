@@ -14,10 +14,10 @@ window.FSDO_CONFIG = {
      Generate it by opening pin-hash.html in a browser and typing your PIN.
      (Storing the hash — not the PIN — keeps the PIN out of the page source.)
      The PIN itself is ALSO checked server-side by the Apps Script.          */
-  PIN_SHA256: "f8d64a31eb7d864da9252b7e5dd2659229cf1a3c4bf9d6d544c0318c81e13cff",
+  PIN_SHA256: "3d80025e7a475d44dde1e42dff074c1b20338642e295bbd9160cfb03918223c0",
 
   /* Who gets CC'd on every notification. */
-  CC: ["josh@illuminatedrones.com", "jacob@illuminatedrones.com"],
+  CC: ["jacob@illuminatedrones.com"],
 
   /* Shown in the "From" line of the review screen (cosmetic — the real
      send identity is whatever the Apps Script is configured to send as). */

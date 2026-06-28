@@ -12,7 +12,7 @@ id = "7abe2cff69534e8cb7f3f699d37ba958"
 SENDER = "orders@illuminatedrones.com"
 SENDER_NAME = "Illuminate Drones"
 WAIVER_FILE_ID = "10MkuGkqIPc2obbbKvpokHVPj9YvgEOU7"
-FORCE_CC = "josh@illuminatedrones.com,jacob@illuminatedrones.com"
+FORCE_CC = "jacob@illuminatedrones.com"
 
 # Secrets (NOT stored here — set once with wrangler):
 #   npx wrangler secret put TEAM_PIN

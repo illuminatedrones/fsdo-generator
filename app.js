@@ -511,6 +511,7 @@
     const t1 = fmtTime($("start-time").value);
     const t2 = fmtTime($("end-time").value);
     const alt = $("alt-ft").value || CFG.DEFAULT_ALT_FT || 400;
+    const drones = ($("num-drones").value || "").trim();
     const coords = `${state.lat}, ${state.lon}`;
     const addrLine = state.address ? `\n${state.address}` : "";
 
@@ -523,6 +524,7 @@
       `Date(s) of operation: ${range}`,
       `Time(s) of operation: ${t1}–${t2}`,
       `Maximum altitude: no higher than ${alt} feet AGL.`,
+      ...(drones ? [`Total number of sUAs (drones): ${drones}`] : []),
       "",
       "I have attached our waiver and CoW as well as the flight plan and exclusion zone screenshot.",
       "",
