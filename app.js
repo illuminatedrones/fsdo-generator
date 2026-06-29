@@ -26,7 +26,7 @@
 
   // Remote pilots offered in the dropdown.
   const PILOTS = {
-    jacob: { name: "Jacob Howard", cert: "1244995", phone: "208-946-8692" },
+    jacob: { name: "Jacob Howard", cert: "4322575", recurrence: "1244995", phone: "208-946-8692" },
     tongi: { name: "Tongi Finau", cert: "5238276", phone: "+(650) 954-3459" }
   };
 
@@ -550,6 +550,7 @@
     const pilotLines = p ? [
       `Pilot in Command: ${p.name}`,
       `Remote Pilot Certificate #: ${p.cert}`,
+      ...(p.recurrence ? [`Recurrent training #: ${p.recurrence}`] : []),
       `PIC phone: ${p.phone}`
     ] : [];
 
@@ -731,7 +732,7 @@
       const p = PILOTS[$("pilot").value] || null;
       state.pilot = p;
       const info = $("pilot-info");
-      if (p) { info.hidden = false; info.textContent = `Certificate #${p.cert} · ${p.phone}`; }
+      if (p) { info.hidden = false; info.textContent = `Certificate #${p.cert}${p.recurrence ? " · Recurrent #" + p.recurrence : ""} · ${p.phone}`; }
       else { info.hidden = true; info.textContent = ""; }
       validate();
     });
