@@ -47,7 +47,8 @@ export default {
       const to = String(req.to || "").trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ ok: false, error: "Invalid recipient email." });
       if (!req.subject || !req.body) return json({ ok: false, error: "Missing subject or body." });
-      if (!req.image || !req.image.dataBase64) return json({ ok: false, error: "Missing exclusion-zone image." });
+      const images = Array.isArray(req.images) ? req.images : (req.image ? [req.image] : []); // back-compat
+      if (!images.length || !images[0] || !images[0].dataBase64) return json({ ok: false, error: "Missing site-plan image(s)." });
 
       // --- google access token (from the orders@ refresh token) ---
       const accessToken = await getAccessToken(env);
@@ -68,11 +69,14 @@ export default {
         });
       }
 
-      // --- uploaded exclusion-zone image ---
-      attachments.push({
-        filename: req.image.name || "exclusion-zone.png",
-        mime: req.image.mimeType || "image/png",
-        b64: req.image.dataBase64
+      // --- uploaded site-plan image(s) ---
+      images.forEach((im, i) => {
+        if (!im || !im.dataBase64) return;
+        attachments.push({
+          filename: im.name || ("site-plan-" + (i + 1) + ".png"),
+          mime: im.mimeType || "image/png",
+          b64: im.dataBase64
+        });
       });
 
       // --- recipients: merge page CC with enforced CC, dedupe ---

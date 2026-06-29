@@ -18,9 +18,16 @@
     nearest: null,         // FSDO object
     fsdoEmail: "",         // the recipient email currently in use
     fsdoEmailOverride: null, // { fsdoId, email } when manually edited
-    image: null,           // { name, mimeType, dataBase64 }
+    images: [],            // [{ name, mimeType, dataBase64, dataUrl }]
+    pilot: null,           // { name, cert, phone }
     fsdos: [],
     spots: []              // saved locations (shared, from the Worker)
+  };
+
+  // Remote pilots offered in the dropdown.
+  const PILOTS = {
+    jacob: { name: "Jacob Howard", cert: "1244995", phone: "208-946-8692" },
+    tongi: { name: "Tongi Finau", cert: "5238276", phone: "+(650) 954-3459" }
   };
 
   // POST JSON to the backend Worker and return the parsed response.
@@ -412,39 +419,57 @@
     const drop = $("excl-drop");
     const input = $("excl-image");
 
-    input.addEventListener("change", () => { if (input.files[0]) handleFile(input.files[0]); });
+    input.addEventListener("change", () => { addFiles(input.files); input.value = ""; });
 
     ["dragover", "dragenter"].forEach((ev) =>
       drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("drag"); }));
     ["dragleave", "drop"].forEach((ev) =>
       drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("drag"); }));
-    drop.addEventListener("drop", (e) => {
-      const f = e.dataTransfer.files[0];
-      if (f && f.type.startsWith("image/")) handleFile(f);
-    });
+    drop.addEventListener("drop", (e) => addFiles(e.dataTransfer.files));
+  }
 
-    $("excl-remove").addEventListener("click", () => {
-      state.image = null;
-      input.value = "";
-      $("excl-preview-wrap").hidden = true;
-      $("excl-drop").style.display = "";
-      validate();
+  function addFiles(fileList) {
+    const files = [...(fileList || [])].filter((f) => f.type && f.type.startsWith("image/"));
+    if (!files.length) { toast("Please upload image files.", "err"); return; }
+    let pending = files.length;
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = String(reader.result);
+        state.images.push({ name: file.name, mimeType: file.type, dataBase64: dataUrl.split(",")[1], dataUrl: dataUrl });
+        if (--pending === 0) { renderImages(); validate(); }
+      };
+      reader.readAsDataURL(file);
     });
   }
 
-  function handleFile(file) {
-    if (!file.type.startsWith("image/")) { toast("Please upload an image file.", "err"); return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result;
-      const base64 = String(dataUrl).split(",")[1];
-      state.image = { name: file.name, mimeType: file.type, dataBase64: base64 };
-      $("excl-preview").src = dataUrl;
-      $("excl-preview-wrap").hidden = false;
-      $("excl-drop").style.display = "none";
-      validate();
-    };
-    reader.readAsDataURL(file);
+  function renderImages() {
+    const wrap = $("excl-previews");
+    wrap.innerHTML = "";
+    state.images.forEach((img, i) => {
+      const div = document.createElement("div");
+      div.className = "excl-thumb";
+      div.innerHTML =
+        `<img src="${img.dataUrl}" alt="" />` +
+        `<button type="button" class="thumb-x" data-i="${i}" title="Remove">✕</button>` +
+        `<span class="thumb-name">${esc(img.name)}</span>`;
+      wrap.appendChild(div);
+    });
+    wrap.querySelectorAll(".thumb-x").forEach((b) =>
+      b.addEventListener("click", () => { state.images.splice(+b.dataset.i, 1); renderImages(); validate(); }));
+
+    // size guard: zip (~16 MB) + images must stay under Gmail's 25 MB cap
+    const mb = state.images.reduce((s, im) => s + (im.dataBase64 ? im.dataBase64.length * 0.75 : 0), 0) / 1e6;
+    if (mb > 8) {
+      const warn = document.createElement("p");
+      warn.className = "fsdo-warn";
+      warn.textContent = `⚠ Images total ~${mb.toFixed(1)} MB. With the 16 MB waiver attached, emails over 25 MB may bounce — consider smaller images.`;
+      wrap.appendChild(warn);
+    }
+
+    $("excl-label").textContent = state.images.length
+      ? "➕ Add another image…"
+      : "Click to upload the flight area / geofence / buffer-zone image(s) — you can add more than one";
   }
 
   /* ------------------------------------------------------------------ */
@@ -461,7 +486,8 @@
     if (!$("start-date").value) problems.push("a start date");
     if (!$("end-date").value) problems.push("an end date");
     if (!$("start-time").value || !$("end-time").value) problems.push("show times");
-    if (!state.image) problems.push("the exclusion-zone image");
+    if (!state.images.length) problems.push("a site-plan image");
+    if (!state.pilot) problems.push("the pilot in command");
     if (!state.nearest) problems.push("a nearby FSDO");
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentToEmail())) problems.push("a valid FSDO email");
 
@@ -510,10 +536,22 @@
     const range = fmtDateRange($("start-date").value, $("end-date").value);
     const t1 = fmtTime($("start-time").value);
     const t2 = fmtTime($("end-time").value);
-    const alt = $("alt-ft").value || CFG.DEFAULT_ALT_FT || 400;
+    const alt = parseFloat($("alt-ft").value) || CFG.DEFAULT_ALT_FT || 400;
     const drones = ($("num-drones").value || "").trim();
+    const vos = ($("num-vos").value || "").trim();
     const coords = `${state.lat}, ${state.lon}`;
     const addrLine = state.address ? `\n${state.address}` : "";
+
+    // buffer distances derived from the max altitude
+    const hardGeofence = Math.round(alt * 5 / 100); // 5 ft per 100 ft AGL
+    const exclusionZone = Math.round(alt / 3);      // 1 ft per 3 ft AGL
+
+    const p = state.pilot;
+    const pilotLines = p ? [
+      `Pilot in Command: ${p.name}`,
+      `Remote Pilot Certificate #: ${p.cert}`,
+      `PIC phone: ${p.phone}`
+    ] : [];
 
     return [
       "Hello,",
@@ -524,9 +562,21 @@
       `Date(s) of operation: ${range}`,
       `Time(s) of operation: ${t1}–${t2}`,
       `Maximum altitude: no higher than ${alt} feet AGL.`,
+      `Hard geofence: ${hardGeofence} feet outside the flight area (5 ft per 100 ft AGL).`,
+      `Exclusion zone: ${exclusionZone} feet (1 ft per 3 ft AGL).`,
       ...(drones ? [`Total number of sUAs (drones): ${drones}`] : []),
+      ...(vos ? [`Total number of Visual Observers (VOs): ${vos}`] : []),
+      ...pilotLines,
       "",
-      "I have attached our waiver and CoW as well as the flight plan and exclusion zone screenshot.",
+      "Site plan image key:",
+      "  • Crisscrossed red line — exclusion zone",
+      "  • Inner dotted line — hard geofence",
+      "  • Yellow line — soft geofence",
+      "  • Yellow triangles — takeoff and landing spots",
+      "  • Orange box — ground control station",
+      "  • Purple box — audience",
+      "",
+      "I have attached our waiver and CoW as well as the flight plan and site-plan image(s).",
       "",
       "Thank you,",
       name
@@ -547,7 +597,7 @@
 
     const att = $("rv-attach");
     att.innerHTML = "";
-    [CFG.WAIVER_ZIP_LABEL || "Waiver packet.zip", state.image.name].forEach((n) => {
+    [CFG.WAIVER_ZIP_LABEL || "Waiver packet.zip", ...state.images.map((i) => i.name)].forEach((n) => {
       const li = document.createElement("li");
       li.textContent = n;
       att.appendChild(li);
@@ -586,7 +636,7 @@
       cc: CFG.CC || [],
       subject: $("rv-subject").value,
       body: $("rv-body").value,
-      image: state.image, // { name, mimeType, dataBase64 }
+      images: state.images.map((i) => ({ name: i.name, mimeType: i.mimeType, dataBase64: i.dataBase64 })),
       meta: {
         lat: state.lat, lon: state.lon, address: state.address,
         fsdoId: state.nearest ? state.nearest.id : null
@@ -676,6 +726,15 @@
 
     ["sender-name", "start-time", "end-time", "alt-ft"]
       .forEach((id) => $(id).addEventListener("input", validate));
+
+    $("pilot").addEventListener("change", () => {
+      const p = PILOTS[$("pilot").value] || null;
+      state.pilot = p;
+      const info = $("pilot-info");
+      if (p) { info.hidden = false; info.textContent = `Certificate #${p.cert} · ${p.phone}`; }
+      else { info.hidden = true; info.textContent = ""; }
+      validate();
+    });
 
     $("review-btn").addEventListener("click", openReview);
     $("review-close").addEventListener("click", closeReview);

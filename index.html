@@ -104,6 +104,16 @@
           <input id="sender-name" type="text" placeholder="Your full name" autocomplete="name" />
         </div>
 
+        <div class="field">
+          <label for="pilot">Pilot in command <span class="req">required</span></label>
+          <select id="pilot">
+            <option value="">— Select pilot —</option>
+            <option value="jacob">Jacob Howard</option>
+            <option value="tongi">Tongi Finau</option>
+          </select>
+          <p id="pilot-info" class="hint" hidden></p>
+        </div>
+
         <div class="grid-2">
           <div class="field">
             <label for="start-date">Start date</label>
@@ -129,18 +139,19 @@
             <label for="num-drones">Number of drones</label>
             <input id="num-drones" type="number" min="1" step="1" placeholder="e.g. 100" />
           </div>
+          <div class="field">
+            <label for="num-vos">Number of visual observers (VOs)</label>
+            <input id="num-vos" type="number" min="0" step="1" placeholder="e.g. 2" />
+          </div>
         </div>
 
-        <h2>3 · Exclusion zone screenshot <span class="req">required</span></h2>
+        <h2>3 · Site plan image(s) <span class="req">required</span></h2>
         <div class="field">
           <label for="excl-image" class="upload-drop" id="excl-drop">
-            <span id="excl-label">Click to upload the flight area / geofence / buffer-zone image</span>
-            <input id="excl-image" type="file" accept="image/*" hidden />
+            <span id="excl-label">Click to upload the flight area / geofence / buffer-zone image(s) — you can add more than one</span>
+            <input id="excl-image" type="file" accept="image/*" multiple hidden />
           </label>
-          <div id="excl-preview-wrap" class="excl-preview-wrap" hidden>
-            <img id="excl-preview" alt="Exclusion zone preview" />
-            <button type="button" id="excl-remove" class="btn btn-ghost btn-sm">Remove</button>
-          </div>
+          <div id="excl-previews" class="excl-previews"></div>
         </div>
 
         <h2>4 · Nearest FSDO</h2>
